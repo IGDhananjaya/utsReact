@@ -1,63 +1,58 @@
-import { useState } from 'react';
+import axios from 'axios';
+import React, { useState, useEffect } from 'react';
 
-import Stack from '@mui/material/Stack';
 import Container from '@mui/material/Container';
 import Grid from '@mui/material/Unstable_Grid2';
 import Typography from '@mui/material/Typography';
 
-import { products } from 'src/_mock/products';
-
-import ProductCard from '../product-card';
-import ProductSort from '../product-sort';
-import ProductFilters from '../product-filters';
-import ProductCartWidget from '../product-cart-widget';
-
-// ----------------------------------------------------------------------
+import ProductsCard from '../product-card';
 
 export default function ProductsView() {
-  const [openFilter, setOpenFilter] = useState(false);
+    const [priorities, setPriorities] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
-  const handleOpenFilter = () => {
-    setOpenFilter(true);
-  };
+    useEffect(() => {
+        const fetchPriorities = async () => {
+            try {
+                const response = await axios.get('https://simobile.singapoly.com/api/division-department');
+                // Mengambil division_target selain division_department_name dari respons API
+                setPriorities(response.data.datas.map(data => ({
+                    id: data.id_division_target,
+                    name: data.division_department_name,
+                    target: data.division_target,
+                })));
+            } catch (err) {
+                setError(err);
+            } finally {
+                setLoading(false);
+            }
+        };
 
-  const handleCloseFilter = () => {
-    setOpenFilter(false);
-  };
+        fetchPriorities();
+    }, []);
 
-  return (
-    <Container>
-      <Typography variant="h4" sx={{ mb: 5 }}>
-        Products
-      </Typography>
+    if (loading) {
+        return <div>Loading...</div>;
+    }
 
-      <Stack
-        direction="row"
-        alignItems="center"
-        flexWrap="wrap-reverse"
-        justifyContent="flex-end"
-        sx={{ mb: 5 }}
-      >
-        <Stack direction="row" spacing={1} flexShrink={0} sx={{ my: 1 }}>
-          <ProductFilters
-            openFilter={openFilter}
-            onOpenFilter={handleOpenFilter}
-            onCloseFilter={handleCloseFilter}
-          />
+    if (error) {
+        return <div>Error: {error.message}</div>;
+    }
 
-          <ProductSort />
-        </Stack>
-      </Stack>
-
-      <Grid container spacing={3}>
-        {products.map((product) => (
-          <Grid key={product.id} xs={12} sm={6} md={3}>
-            <ProductCard product={product} />
-          </Grid>
-        ))}
-      </Grid>
-
-      <ProductCartWidget />
-    </Container>
-  );
+    return (
+        <Container maxWidth="xl">
+            <Typography variant="h4" sx={{ mb: 5 }}>
+                Menu Master Data Department
+            </Typography>
+            <Grid container spacing={3}>
+                <Grid xs={12} md={6} lg={12}>
+                    <ProductsCard
+                        title="List Department"
+                        list={priorities}
+                    />
+                </Grid>
+            </Grid>
+        </Container>
+    );
 }
