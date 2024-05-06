@@ -16,7 +16,7 @@ export default function ProductsView() {
         const fetchPriorities = async () => {
             try {
                 const response = await axios.get('https://simobile.singapoly.com/api/division-department');
-                // Mengambil division_target selain division_department_name dari respons API
+                // Memperbarui struktur data dengan menyertakan division_target
                 setPriorities(response.data.datas.map(data => ({
                     id: data.id_division_target,
                     name: data.division_department_name,
@@ -28,9 +28,10 @@ export default function ProductsView() {
                 setLoading(false);
             }
         };
-
+    
         fetchPriorities();
     }, []);
+    
 
     if (loading) {
         return <div>Loading...</div>;
