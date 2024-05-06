@@ -1,154 +1,208 @@
-import { useState } from 'react';
+import axios from 'axios';
+import PropTypes from 'prop-types';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 
-import Box from '@mui/material/Box';
-import Link from '@mui/material/Link';
-import Card from '@mui/material/Card';
-import Stack from '@mui/material/Stack';
-import Button from '@mui/material/Button';
-import Divider from '@mui/material/Divider';
-import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
-import IconButton from '@mui/material/IconButton';
-import LoadingButton from '@mui/lab/LoadingButton';
-import { alpha, useTheme } from '@mui/material/styles';
-import InputAdornment from '@mui/material/InputAdornment';
+import { Paper, Input, Button, Select, MenuItem, TextField, InputLabel, Typography, FormControl } from '@mui/material';
 
-import { useRouter } from 'src/routes/hooks';
+export default function UserEditForm({ nim }) {
+  const { id } = useParams();
+  const navigate = useNavigate();
 
-import { bgGradient } from 'src/theme/css';
+  const [titleIssues, setTitleIssues] = useState('');
+  const [descriptionIssues, setDescriptionIssues] = useState('');
+  const [issueRating, setIssueRating] = useState('');
+  const [division, setDivision] = useState('');
+  const [priority, setPriority] = useState('');
+  const [image, setImage] = useState(null);
+  const [loadingData, setLoadingData] = useState(true);
+  const [fetchError, setFetchError] = useState(null);
+  const [divisionsData, setDivisionsData] = useState([]);
+  const [prioritiesData, setPrioritiesData] = useState([]);
 
-import Logo from 'src/components/logo';
-import Iconify from 'src/components/iconify';
+  useEffect(() => {
+    // Fetch the issue details
+    const fetchIssueDetails = async () => {
+      try {
+        const response = await axios.get(`https://simobile.singapoly.com/api/trpl/customer-service/${nim}/${id}`);
+        const { title_issues, description_issues, rating, id_division_target, id_priority } = response.data;
+        setTitleIssues(title_issues);
+        setDescriptionIssues(description_issues);
+        setIssueRating(rating);
+        setDivision(id_division_target);
+        setPriority(id_priority);
+      } catch (error) {
+        console.error('Error fetching issue details:', error);
+        setFetchError(error);
+      } finally {
+        setLoadingData(false);
+      }
+    };
+    fetchIssueDetails();
 
-// ----------------------------------------------------------------------
+    // Fetch dropdown data
+    const fetchDropdownData = async () => {
+      try {
+        const divisionResponse = await axios.get('https://simobile.singapoly.com/api/division-department');
+        setDivisionsData(divisionResponse.data.datas);
 
-export default function LoginView() {
-  const theme = useTheme();
+        const priorityResponse = await axios.get('https://simobile.singapoly.com/api/priority-issues');
+        setPrioritiesData(priorityResponse.data.datas);
+      } catch (error) {
+        setFetchError(error);
+      } finally {
+        setLoadingData(false);
+      }
+    };
 
-  const router = useRouter();
+    fetchDropdownData();
+  }, [id, nim]);
 
-  const [showPassword, setShowPassword] = useState(false);
-
-  const handleClick = () => {
-    router.push('/dashboard');
+  const handleChange = (setter) => (event) => {
+    setter(event.target.value);
   };
 
-  const renderForm = (
-    <>
-      <Stack spacing={3}>
-        <TextField name="email" label="Email address" />
+  const handleFileChange = (event) => {
+    setImage(event.target.files[0]);
+  };
 
-        <TextField
-          name="password"
-          label="Password"
-          type={showPassword ? 'text' : 'password'}
-          InputProps={{
-            endAdornment: (
-              <InputAdornment position="end">
-                <IconButton onClick={() => setShowPassword(!showPassword)} edge="end">
-                  <Iconify icon={showPassword ? 'eva:eye-fill' : 'eva:eye-off-fill'} />
-                </IconButton>
-              </InputAdornment>
-            ),
-          }}
-        />
-      </Stack>
+  const handleSubmit = async (event) => {
+    event.preventDefault();
 
-      <Stack direction="row" alignItems="center" justifyContent="flex-end" sx={{ my: 3 }}>
-        <Link variant="subtitle2" underline="hover">
-          Forgot password?
-        </Link>
-      </Stack>
+    const formData = new FormData();
+    formData.append('title_issues', titleIssues);
+    formData.append('description_issues', descriptionIssues);
+    formData.append('rating', issueRating);
+    formData.append('id_division_target', division);
+    formData.append('id_priority', priority);
+    formData.append('image', image);
 
-      <LoadingButton
-        fullWidth
-        size="large"
-        type="submit"
-        variant="contained"
-        color="inherit"
-        onClick={handleClick}
-      >
-        Login
-      </LoadingButton>
-    </>
-  );
+    try {
+      const response = await axios.put(`https://simobile.singapoly.com/api/trpl/customer-service/${nim}/${id}`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      console.log('Data saved:', response.data);
+      alert('Data has been saved successfully!');
+      navigate('/user');
+      resetForm();
+    } catch (error) {
+      console.error('Error saving data:', error);
+    }
+  };
+
+  const resetForm = () => {
+    setTitleIssues('');
+    setDescriptionIssues('');
+    setIssueRating('');
+    setDivision('');
+    setPriority('');
+    setImage(null);
+  };
+
+  if (loadingData) {
+    return <div>Loading...</div>;
+  }
+
+  if (fetchError) {
+    return <div>Error: {fetchError.message}</div>;
+  }
 
   return (
-    <Box
-      sx={{
-        ...bgGradient({
-          color: alpha(theme.palette.background.default, 0.9),
-          imgUrl: '/assets/background/overlay_4.jpg',
-        }),
-        height: 1,
-      }}
-    >
-      <Logo
-        sx={{
-          position: 'fixed',
-          top: { xs: 16, md: 24 },
-          left: { xs: 16, md: 24 },
-        }}
-      />
+    <Paper elevation={3} sx={{ p: 3 }}>
+      <form onSubmit={handleSubmit} encType="multipart/form-data">
+        <Typography variant="h6" gutterBottom>
+          Edit Issue Form
+        </Typography>
 
-      <Stack alignItems="center" justifyContent="center" sx={{ height: 1 }}>
-        <Card
-          sx={{
-            p: 5,
-            width: 1,
-            maxWidth: 420,
-          }}
+        <TextField
+          label="Title Issues"
+          value={titleIssues}
+          onChange={handleChange(setTitleIssues)}
+          fullWidth
+          margin="normal"
+          required
+        />
+
+        <TextField
+          label="Description Issues"
+          value={descriptionIssues}
+          onChange={handleChange(setDescriptionIssues)}
+          fullWidth
+          multiline
+          rows={4}
+          margin="normal"
+          required
+        />
+
+        <TextField
+          label="Rating"
+          value={issueRating}
+          onChange={handleChange(setIssueRating)}
+          type="number"
+          fullWidth
+          margin="normal"
+          required
+        />
+
+        <FormControl fullWidth margin="normal" required>
+          <InputLabel>Division</InputLabel>
+          <Select
+            value={division}
+            onChange={handleChange(setDivision)}
+          >
+            {divisionsData.map((div) => (
+              <MenuItem key={div.id_division_target} value={div.id_division_target}>
+                {div.division_department_name}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+
+        <FormControl fullWidth margin="normal" required>
+          <InputLabel>Priority</InputLabel>
+          <Select
+            value={priority}
+            onChange={handleChange(setPriority)}
+          >
+            {prioritiesData.map((pri) => (
+              <MenuItem key={pri.id_priority} value={pri.id_priority}>
+                {pri.priority_name}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+
+        <Input
+          type="file"
+          onChange={handleFileChange}
+          fullWidth
+          margin="normal"
+          required
+        />
+
+        <Button
+          variant="contained"
+          color="primary"
+          type="submit"
+          sx={{ mt: 2 }}
         >
-          <Typography variant="h4">Sign in to Minimal</Typography>
-
-          <Typography variant="body2" sx={{ mt: 2, mb: 5 }}>
-            Don’t have an account?
-            <Link variant="subtitle2" sx={{ ml: 0.5 }}>
-              Get started
-            </Link>
-          </Typography>
-
-          <Stack direction="row" spacing={2}>
-            <Button
-              fullWidth
-              size="large"
-              color="inherit"
-              variant="outlined"
-              sx={{ borderColor: alpha(theme.palette.grey[500], 0.16) }}
-            >
-              <Iconify icon="eva:google-fill" color="#DF3E30" />
-            </Button>
-
-            <Button
-              fullWidth
-              size="large"
-              color="inherit"
-              variant="outlined"
-              sx={{ borderColor: alpha(theme.palette.grey[500], 0.16) }}
-            >
-              <Iconify icon="eva:facebook-fill" color="#1877F2" />
-            </Button>
-
-            <Button
-              fullWidth
-              size="large"
-              color="inherit"
-              variant="outlined"
-              sx={{ borderColor: alpha(theme.palette.grey[500], 0.16) }}
-            >
-              <Iconify icon="eva:twitter-fill" color="#1C9CEA" />
-            </Button>
-          </Stack>
-
-          <Divider sx={{ my: 3 }}>
-            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-              OR
-            </Typography>
-          </Divider>
-
-          {renderForm}
-        </Card>
-      </Stack>
-    </Box>
+          Save Changes
+        </Button>
+        <Button
+          variant="outlined"
+          color="secondary"
+          onClick={resetForm}
+          sx={{ mt: 2, ml: 2 }}
+        >
+          Reset
+        </Button>
+      </form>
+    </Paper>
   );
 }
+
+UserEditForm.propTypes = {
+  nim: PropTypes.string.isRequired,
+};
